@@ -3,35 +3,15 @@
  *          MYGIT - Status Command
  *          "mygit status"
  * ============================================
- *
- * PURPOSE:
- *   Show the current state of the working directory.
- *   Tell user: what's staged, modified, or untracked.
- *
- * DATA STRUCTURES USED:
- *   1. Arrays     → Store lists of filenames
- *   2. Hash values → Detect if files have changed
- *   3. Structs    → Hold staging area entries
- *
- * THREE FILE STATES:
- *   STAGED    → In staging.dat, ready to commit
- *   MODIFIED  → Staged before but file changed since
- *   UNTRACKED → File exists but never staged
  */
 
 #include "mygit.h"
 
-
-/*
+/* ════════════════════════════════════════════
  * STRUCT: StagingEntry
- * ─────────────────────
- * Holds ONE entry from the staging area.
- * We need this to compare hashes.
- *
- * Think of it as ONE LINE from staging.dat:
- *   "hello.txt|193485797"
- *   filename = "hello.txt"
- *   hash     = 193485797
+ * Holds one entry from staging.dat
+ * "hello.txt|193485797"
+ * ════════════════════════════════════════════
  */
 typedef struct {
     char filename[MAX_FILENAME];
@@ -39,31 +19,84 @@ typedef struct {
 } StagingEntry;
 
 
-/*
+/* ════════════════════════════════════════════
+ * FUNCTION: should_ignore_file
+ * Returns 1 = ignore this file
+ * Returns 0 = show this file
+ * ════════════════════════════════════════════
+ */
+int should_ignore_file(const char* filename) {
+
+    /* List of exact filenames to ignore */
+    const char* ignore_names[] = {
+        "mygit.exe",
+        "mygit",
+        "Makefile",
+        NULL   /* NULL marks the end of the list */
+    };
+
+    /* Check exact name matches */
+    int i = 0;
+    while (ignore_names[i] != NULL) {
+        if (strcmp(filename, ignore_names[i]) == 0) {
+            return 1;  /* Ignore it */
+        }
+        i++;
+    }
+
+    /*
+     * Check file extension
+     * strrchr finds the LAST dot in the filename
+     * "add.c"     → ext points to ".c"
+     * "hello.txt" → ext points to ".txt"
+     * "Makefile"  → ext is NULL (no dot)
+     */
+    const char* ext = strrchr(filename, '.');
+
+    if (ext != NULL) {
+
+        /* List of extensions to ignore */
+        const char* ignore_ext[] = {
+            ".c",
+            ".h",
+            ".exe",
+            ".o",
+            ".obj",
+            ".dat",
+            ".blob",
+            NULL   /* NULL marks the end */
+        };
+
+        int j = 0;
+        while (ignore_ext[j] != NULL) {
+            if (strcmp(ext, ignore_ext[j]) == 0) {
+                return 1;  /* Ignore it */
+            }
+            j++;
+        }
+    }
+
+    /* Don't ignore anything else */
+    return 0;
+}
+
+
+/* ════════════════════════════════════════════
  * FUNCTION: read_staging_entries
- * ──────────────────────────────
- * Reads ALL entries from staging.dat
- * into an array of StagingEntry structs.
- *
- * PARAMETERS:
- *   entries   → Array to fill with staging entries
- *   max_count → Maximum entries to read
- *
- * RETURNS:
- *   Number of entries read
+ * Reads all entries from staging.dat
+ * into an array of StagingEntry structs
+ * ════════════════════════════════════════════
  */
 int read_staging_entries(StagingEntry* entries, int max_count) {
 
     FILE* fp = fopen(STAGING_FILE, "r");
-
-    if (!fp) {
-        return 0;  /* No staging file = nothing staged */
-    }
+    if (!fp) return 0;
 
     int count = 0;
     char line[MAX_LINE];
 
-    while (fgets(line, sizeof(line), fp) && count < max_count) {
+    while (fgets(line, sizeof(line), fp)
+           && count < max_count) {
 
         /* Remove newline */
         line[strcspn(line, "\n\r")] = '\0';
@@ -75,18 +108,20 @@ int read_staging_entries(StagingEntry* entries, int max_count) {
 
         /*
          * Parse "hello.txt|193485797"
-         * Split at '|' to get filename and hash
+         * Split at | to get filename and hash
          */
         char temp[MAX_LINE];
         strcpy(temp, line);
 
-        char* filename = strtok(temp, "|");
-        char* hash_str = strtok(NULL, "|");
+        char* fname = strtok(temp, "|");
+        char* hstr  = strtok(NULL, "|");
 
-        if (filename && hash_str) {
-            strncpy(entries[count].filename, filename, MAX_FILENAME - 1);
+        if (fname && hstr) {
+            strncpy(entries[count].filename,
+                    fname,
+                    MAX_FILENAME - 1);
             entries[count].filename[MAX_FILENAME - 1] = '\0';
-            entries[count].hash = strtoul(hash_str, NULL, 10);
+            entries[count].hash = strtoul(hstr, NULL, 10);
             count++;
         }
     }
@@ -96,103 +131,61 @@ int read_staging_entries(StagingEntry* entries, int max_count) {
 }
 
 
-/*
- * FUNCTION: is_file_staged
- * ────────────────────────
- * Checks if a specific filename is in our
- * staging entries array.
- *
- * PARAMETERS:
- *   filename  → File to look for
- *   entries   → Array of staging entries
- *   count     → How many entries in array
- *
- * RETURNS:
- *   Index of the entry if found (0, 1, 2...)
- *   -1 if NOT found
- *
- * WHY return index instead of 0/1?
- *   So the caller can ACCESS the entry's hash!
- *   Just knowing "it exists" isn't enough.
- *   We need the hash to check if it's MODIFIED.
+/* ════════════════════════════════════════════
+ * FUNCTION: find_in_staging
+ * Searches for filename in staging entries
+ * Returns index if found, -1 if not found
+ * ════════════════════════════════════════════
  */
-int is_file_staged(const char* filename,
-                   StagingEntry* entries,
-                   int count) {
+int find_in_staging(const char* filename,
+                    StagingEntry* entries,
+                    int count) {
 
     for (int i = 0; i < count; i++) {
         if (strcmp(entries[i].filename, filename) == 0) {
-            return i;  /* Found! Return the INDEX */
+            return i;
         }
     }
-
-    return -1;  /* Not found */
+    return -1;
 }
 
 
-/*
+/* ════════════════════════════════════════════
  * FUNCTION: get_committed_files
- * ─────────────────────────────
- * Gets the list of files in the LAST commit
- * on the current branch.
- *
- * WHY?
- *   We need to know what was committed before.
- *   Files that were committed but NOT in staging
- *   are "not staged for commit" (tracked but clean).
- *
- * HOW:
- *   1. Get current branch
- *   2. Read refs/branch to find latest commit ID
- *   3. Search commits.dat for that commit
- *   4. Extract its file list
- *
- * PARAMETERS:
- *   filenames  → Array to fill with committed filenames
- *   hashes     → Array to fill with their hashes
- *   max_count  → Maximum files to read
- *
- * RETURNS:
- *   Number of files in last commit
+ * Gets file list from the LATEST commit
+ * on the current branch
+ * ════════════════════════════════════════════
  */
 int get_committed_files(char filenames[][MAX_FILENAME],
                         unsigned long* hashes,
                         int max_count) {
 
-    /*
-     * Get current branch name
-     */
+    /* Get current branch */
     char branch[MAX_BRANCH_NAME];
     get_current_branch(branch, sizeof(branch));
 
-    /*
-     * Get latest commit ID on this branch
-     */
+    /* Build path to branch ref file */
     char ref_path[MAX_PATH];
-    snprintf(ref_path, sizeof(ref_path), "%s/%s", REFS_DIR, branch);
+    snprintf(ref_path, sizeof(ref_path),
+             "%s/%s", REFS_DIR, branch);
 
+    /* Read latest commit ID */
     char id_str[20];
     if (read_file(ref_path, id_str, sizeof(id_str)) < 0) {
-        return 0;  /* No commits yet */
-    }
-
-    int target_id = atoi(id_str);
-    if (target_id <= 0) {
-        return 0;  /* No commits yet */
-    }
-
-    /*
-     * Open commits.dat and find the commit with this ID
-     */
-    FILE* fp = fopen(COMMITS_FILE, "r");
-    if (!fp) {
         return 0;
     }
 
-    int count = 0;
+    int target_id = atoi(id_str);
+    if (target_id <= 0) return 0;
+
+    /* Open commits file */
+    FILE* fp = fopen(COMMITS_FILE, "r");
+    if (!fp) return 0;
+
+    int count      = 0;
+    int found      = 0;
+    int current_id = -1;
     char line[MAX_LINE];
-    int found_commit = 0;  /* Are we inside the right commit block? */
-    int current_id = -1;   /* ID of the commit block we're reading */
 
     while (fgets(line, sizeof(line), fp)) {
 
@@ -202,58 +195,52 @@ int get_committed_files(char filenames[][MAX_FILENAME],
             continue;
         }
 
-        /*
-         * Check if this is a new commit block
-         * "COMMIT:3" → current_id = 3
-         */
-        int read_id;
-        if (sscanf(line, "COMMIT:%d", &read_id) == 1) {
-            current_id = read_id;
-            /* Are we in the commit we're looking for? */
-            found_commit = (current_id == target_id);
+        /* Check for new commit block */
+        int rid;
+        if (sscanf(line, "COMMIT:%d", &rid) == 1) {
+            current_id = rid;
+            found = (current_id == target_id);
             continue;
         }
 
-        /* Skip this block if not our target commit */
-        if (!found_commit) {
-            continue;
-        }
+        /* Skip if not our target commit */
+        if (!found) continue;
 
-        /* We're in the right commit! Parse file list */
-        if (strncmp(line, "FILES:", 6) == 0 && count == 0) {
+        /* Parse FILES line */
+        if (strncmp(line, "FILES:", 6) == 0) {
+            char copy[MAX_LINE];
+            strncpy(copy, line + 6, MAX_LINE - 1);
+            copy[MAX_LINE - 1] = '\0';
 
-            char files_copy[MAX_LINE];
-            strncpy(files_copy, line + 6, MAX_LINE - 1);
-            files_copy[MAX_LINE - 1] = '\0';
-
-            char* token = strtok(files_copy, ",");
-            while (token != NULL && count < max_count) {
-                strncpy(filenames[count], token, MAX_FILENAME - 1);
+            char* tok = strtok(copy, ",");
+            while (tok && count < max_count) {
+                strncpy(filenames[count],
+                        tok,
+                        MAX_FILENAME - 1);
                 filenames[count][MAX_FILENAME - 1] = '\0';
                 count++;
-                token = strtok(NULL, ",");
+                tok = strtok(NULL, ",");
             }
         }
 
-        /* Parse hash list */
+        /* Parse HASHES line */
         if (strncmp(line, "HASHES:", 7) == 0) {
+            char copy[MAX_LINE];
+            strncpy(copy, line + 7, MAX_LINE - 1);
+            copy[MAX_LINE - 1] = '\0';
 
-            char hashes_copy[MAX_LINE];
-            strncpy(hashes_copy, line + 7, MAX_LINE - 1);
-            hashes_copy[MAX_LINE - 1] = '\0';
-
-            char* token = strtok(hashes_copy, ",");
+            char* tok = strtok(copy, ",");
             int idx = 0;
-            while (token != NULL && idx < max_count) {
-                hashes[idx] = strtoul(token, NULL, 10);
+            while (tok && idx < max_count) {
+                hashes[idx] = strtoul(tok, NULL, 10);
                 idx++;
-                token = strtok(NULL, ",");
+                tok = strtok(NULL, ",");
             }
         }
 
-        /* End of this commit block */
-        if (strcmp(line, "END") == 0 && found_commit) {
-            break;  /* Found what we needed, stop reading */
+        /* End of target commit block */
+        if (strcmp(line, "END") == 0 && found) {
+            break;
         }
     }
 
@@ -262,198 +249,11 @@ int get_committed_files(char filenames[][MAX_FILENAME],
 }
 
 
-/*
- * FUNCTION: list_directory_files
- * ──────────────────────────────
- * Lists ALL regular files in the current directory.
- * Skips hidden files (starting with '.') and folders.
- *
- * This is the MOST PLATFORM-DEPENDENT function.
- * Windows and Linux have different APIs for this!
- *
- * PARAMETERS:
- *   files     → Array to fill with filenames
- *   max_count → Maximum files to return
- *
- * RETURNS:
- *   Number of files found
- */
-/*
- * FUNCTION: should_ignore_file
- * ─────────────────────────────
- * Returns 1 if we should IGNORE this file in status.
- * Returns 0 if we should SHOW this file.
- *
- * We ignore:
- *   → Our own source files (.c, .h)
- *   → Compiled files (.exe, .o)
- *   → Build files (Makefile)
- *
- * Think of it like .gitignore in real Git!
- * Real Git has a .gitignore file where you list
- * files to ignore. We're doing it manually here.
- *
- * FUTURE IMPROVEMENT:
- *   Read from a .mygitignore file!
- *   That would be a great extra feature to add!
- */
-int should_ignore_file(const char* filename) {
-
-    /*
-     * Check file EXTENSION
-     *
-     * strrchr = "string reverse char"
-     * Finds the LAST occurrence of a character
-     *
-     * strrchr("hello.world.txt", '.')
-     *   → Returns pointer to ".txt" (the LAST dot)
-     *
-     * WHY last dot?
-     *   Some files have multiple dots: "my.file.c"
-     *   We want the EXTENSION (.c), which is after the LAST dot
-     */
-    const char* ext = strrchr(filename, '.');
-
-    if (ext != NULL) {
-        /* Compare extension with known types to ignore */
-        if (strcmp(ext, ".c")   == 0) return 1;
-        if (strcmp(ext, ".h")   == 0) return 1;
-        if (strcmp(ext, ".exe") == 0) return 1;
-        if (strcmp(ext, ".o")   == 0) return 1;
-        if (strcmp(ext, ".dat") == 0) return 1;
-    }
-
-    /* Check specific filenames */
-    if (strcmp(filename, "Makefile") == 0) return 1;
-    if (strcmp(filename, "mygit")    == 0) return 1;
-
-    /* Don't ignore anything else */
-    return 0;
-}
-int list_directory_files(char files[][MAX_FILENAME], int max_count) {
-
-    int count = 0;
-
-    #ifdef _WIN32
-    /*
-     * WINDOWS VERSION
-     * ───────────────
-     * Windows uses FindFirstFile / FindNextFile API
-     *
-     * WIN32_FIND_DATA → Struct holding file information
-     * HANDLE          → Like a FILE* but for directory searching
-     *
-     * Process:
-     *   1. FindFirstFile("*") → Start searching, get first file
-     *   2. FindNextFile()     → Get next file (repeat)
-     *   3. FindClose()        → Stop searching (like fclose)
-     */
-    WIN32_FIND_DATA findData;
-
-    /*
-     * "*" means "find ALL files"
-     * FindFirstFile returns info about the first match
-     * and a HANDLE we use for subsequent calls
-     */
-    HANDLE hFind = FindFirstFile("*", &findData);
-
-    if (hFind == INVALID_HANDLE_VALUE) {
-        return 0;  /* Directory is empty or error */
-    }
-
-    do {
-    if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-        continue;
-    }
-
-    if (findData.cFileName[0] == '.') {
-        continue;
-    }
-
-    /* Use our ignore function! */
-    if (should_ignore_file(findData.cFileName)) {
-        continue;
-    }
-
-    if (count < max_count) {
-        strncpy(files[count], findData.cFileName, MAX_FILENAME - 1);
-        files[count][MAX_FILENAME - 1] = '\0';
-        count++;
-    }
-
-} while (FindNextFile(hFind, &findData) && count < max_count);
-    /*
-     * FindNextFile returns:
-     *   Non-zero → found another file, continue
-     *   0        → no more files, stop the loop
-     *
-     * The do-while loop:
-     *   Runs ONCE first (the "do" part)
-     *   Then checks condition (FindNextFile)
-     *   If condition true → loop again
-     *   If condition false → stop
-     */
-
-    FindClose(hFind);  /* Like fclose but for directory handles */
-
-    #else
-    /*
-     * LINUX/MAC VERSION
-     * ─────────────────
-     * Uses opendir/readdir/closedir from <dirent.h>
-     *
-     * DIR*    → Like FILE* but for directories
-     * dirent* → Struct holding one file's info
-     */
-    DIR* dir = opendir(".");  /* "." means current directory */
-
-    if (!dir) {
-        return 0;
-    }
-
-    struct dirent* entry;
-
-    while ((entry = readdir(dir)) != NULL && count < max_count) {
-
-        /* Skip hidden files and folders (. and ..) */
-        if (entry->d_name[0] == '.') {
-            continue;
-        }
-
-        /* Skip our executable */
-        if (strcmp(entry->d_name, "mygit") == 0) {
-            continue;
-        }
-
-        strncpy(files[count], entry->d_name, MAX_FILENAME - 1);
-        files[count][MAX_FILENAME - 1] = '\0';
-        count++;
-    }
-
-    closedir(dir);
-
-    #endif
-
-    return count;
-}
-
-
-/*
+/* ════════════════════════════════════════════
  * FUNCTION: is_in_list
- * ─────────────────────
- * Checks if a filename exists in a 2D array of filenames.
- *
- * PARAMETERS:
- *   filename → What to look for
- *   list     → 2D array of filenames
- *   count    → How many filenames in list
- *
- * RETURNS:
- *   1 → Found
- *   0 → Not found
- *
- * This is a LINEAR SEARCH — O(n) time complexity
- * We check each element one by one until we find it.
+ * Linear search in a 2D array of filenames
+ * Returns 1 if found, 0 if not found
+ * ════════════════════════════════════════════
  */
 int is_in_list(const char* filename,
                char list[][MAX_FILENAME],
@@ -461,39 +261,111 @@ int is_in_list(const char* filename,
 
     for (int i = 0; i < count; i++) {
         if (strcmp(list[i], filename) == 0) {
-            return 1;  /* Found! */
+            return 1;
         }
     }
-    return 0;  /* Not found */
+    return 0;
 }
 
 
-/*
- * ═══════════════════════════════════════════════
+/* ════════════════════════════════════════════
+ * FUNCTION: list_directory_files
+ * Lists all USER files in current directory.
+ * Automatically ignores .c .h .exe etc.
+ * ════════════════════════════════════════════
+ */
+int list_directory_files(char files[][MAX_FILENAME],
+                         int max_count) {
+    int count = 0;
+
+#ifdef _WIN32
+
+    WIN32_FIND_DATA fd;
+    HANDLE hFind = FindFirstFile("*", &fd);
+
+    if (hFind == INVALID_HANDLE_VALUE) {
+        return 0;
+    }
+
+    do {
+        /*
+         * FILTER 1: Skip directories
+         * We only want regular files
+         */
+        if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+            continue;
+        }
+
+        /*
+         * FILTER 2: Skip hidden files
+         * Files starting with '.' are hidden
+         * Example: .mygit, .gitignore
+         */
+        if (fd.cFileName[0] == '.') {
+            continue;
+        }
+
+        /*
+         * FILTER 3: Skip project/system files
+         * Uses our should_ignore_file function
+         */
+        if (should_ignore_file(fd.cFileName)) {
+            continue;
+        }
+
+        /*
+         * This file passed all filters!
+         * Add it to our list.
+         */
+        if (count < max_count) {
+            strncpy(files[count],
+                    fd.cFileName,
+                    MAX_FILENAME - 1);
+            files[count][MAX_FILENAME - 1] = '\0';
+            count++;
+        }
+
+    } while (FindNextFile(hFind, &fd)
+             && count < max_count);
+
+    FindClose(hFind);
+
+#else
+
+    DIR* dir = opendir(".");
+    if (!dir) return 0;
+
+    struct dirent* entry;
+
+    while ((entry = readdir(dir)) != NULL
+           && count < max_count) {
+
+        if (entry->d_name[0] == '.') continue;
+
+        if (should_ignore_file(entry->d_name)) continue;
+
+        strncpy(files[count],
+                entry->d_name,
+                MAX_FILENAME - 1);
+        files[count][MAX_FILENAME - 1] = '\0';
+        count++;
+    }
+
+    closedir(dir);
+
+#endif
+
+    return count;
+}
+
+
+/* ════════════════════════════════════════════
  * MAIN FUNCTION: mygit_status
- * ═══════════════════════════════════════════════
- *
- * This is what runs when user types: mygit status
- *
- * ALGORITHM:
- *   1. Get current branch
- *   2. Read staging area
- *   3. For each staged file:
- *      → Hash the CURRENT version
- *      → Compare with staged hash
- *      → If different → MODIFIED
- *      → If same → cleanly staged
- *   4. List all files in directory
- *   5. For each directory file:
- *      → If NOT staged → UNTRACKED
+ * ════════════════════════════════════════════
  */
 int mygit_status(void) {
 
-    /*
-     * ──────────────────────────────────────────
-     * STEP 1: Show current branch
-     * ──────────────────────────────────────────
-     */
+    /* ── Step 1: Show branch ── */
     char branch[MAX_BRANCH_NAME];
     get_current_branch(branch, sizeof(branch));
 
@@ -501,252 +373,183 @@ int mygit_status(void) {
     printf(CYAN "  On branch: " YELLOW "%s\n" RESET, branch);
     printf("\n");
 
-    /*
-     * ──────────────────────────────────────────
-     * STEP 2: Read staging area into array
-     * ──────────────────────────────────────────
-     *
-     * StagingEntry entries[50] → Array of max 50 staged files
-     * staged_count             → How many files are actually staged
-     */
+    /* ── Step 2: Read staging area ── */
     StagingEntry entries[50];
     int staged_count = read_staging_entries(entries, 50);
 
-    /*
-     * ──────────────────────────────────────────
-     * STEP 3: Get files from last commit
-     * ──────────────────────────────────────────
-     *
-     * We need this to identify files that are
-     * "tracked" (committed before) vs "untracked"
-     */
+    /* ── Step 3: Read last commit files ── */
     char committed_files[50][MAX_FILENAME];
     unsigned long committed_hashes[50];
-    int committed_count = get_committed_files(committed_files,
-                                               committed_hashes,
-                                               50);
+    int committed_count = get_committed_files(
+                              committed_files,
+                              committed_hashes,
+                              50);
 
-    /*
-     * ──────────────────────────────────────────
-     * STEP 4: List all files in current directory
-     * ──────────────────────────────────────────
-     */
+    /* ── Step 4: List directory files ── */
     char dir_files[100][MAX_FILENAME];
     int dir_count = list_directory_files(dir_files, 100);
 
+    /* ── Step 5: Categorize files ── */
+
+    /* Files that are cleanly staged */
+    char staged_clean[50][MAX_FILENAME];
+    int  staged_clean_count = 0;
+
+    /* Files that changed AFTER staging */
+    char modified[50][MAX_FILENAME];
+    int  modified_count = 0;
+
+    /* Files never tracked */
+    char untracked[100][MAX_FILENAME];
+    int  untracked_count = 0;
+
     /*
-     * ──────────────────────────────────────────
-     * STEP 5: Find STAGED and MODIFIED files
-     * ──────────────────────────────────────────
-     *
-     * For each staged entry:
-     *   → Check if the actual file changed
-     *   → If yes: MODIFIED (needs re-staging)
-     *   → If no:  cleanly STAGED
+     * Check each staged entry:
+     * Compare current hash vs staged hash
      */
-
-    /* Arrays to collect staged and modified files */
-    char staged_files[50][MAX_FILENAME];
-    int staged_file_count = 0;
-
-    char modified_files[50][MAX_FILENAME];
-    int modified_count = 0;
-
     for (int i = 0; i < staged_count; i++) {
 
-        char* filename = entries[i].filename;
+        char* fname = entries[i].filename;
         unsigned long staged_hash = entries[i].hash;
 
-        /*
-         * Does the file still exist on disk?
-         */
-        if (!file_exists(filename)) {
-            /*
-             * File was staged but then DELETED!
-             * This is a special case.
-             * Real git shows "deleted" for this.
-             * We'll show it as modified for simplicity.
-             */
-            strncpy(modified_files[modified_count],
-                    filename,
-                    MAX_FILENAME - 1);
-            modified_files[modified_count][MAX_FILENAME - 1] = '\0';
+        /* File deleted after staging */
+        if (!file_exists(fname)) {
+            strncpy(modified[modified_count],
+                    fname, MAX_FILENAME - 1);
+            modified[modified_count][MAX_FILENAME-1] = '\0';
             modified_count++;
             continue;
         }
 
-        /*
-         * Read the CURRENT file content and hash it
-         *
-         * This is how we detect changes:
-         *   staged_hash  = hash when user ran "mygit add"
-         *   current_hash = hash of file RIGHT NOW
-         *
-         *   staged_hash == current_hash → no changes → STAGED ✅
-         *   staged_hash != current_hash → file changed → MODIFIED ✏️
-         */
+        /* Read current content and hash it */
         char content[MAX_CONTENT];
-        if (read_file(filename, content, MAX_CONTENT) < 0) {
+        if (read_file(fname, content, MAX_CONTENT) < 0) {
             continue;
         }
 
-        unsigned long current_hash = hash_content(content);
+        unsigned long cur_hash = hash_content(content);
 
-        if (current_hash == staged_hash) {
-            /*
-             * Hash matches → file hasn't changed since staging
-             * It's cleanly STAGED ✅
-             */
-            strncpy(staged_files[staged_file_count],
-                    filename,
-                    MAX_FILENAME - 1);
-            staged_files[staged_file_count][MAX_FILENAME - 1] = '\0';
-            staged_file_count++;
-
+        if (cur_hash == staged_hash) {
+            /* Hash matches → cleanly staged */
+            strncpy(staged_clean[staged_clean_count],
+                    fname, MAX_FILENAME - 1);
+            staged_clean[staged_clean_count][MAX_FILENAME-1] = '\0';
+            staged_clean_count++;
         } else {
-            /*
-             * Hash is DIFFERENT → file was modified after staging
-             * It needs to be re-added! ✏️
-             */
-            strncpy(modified_files[modified_count],
-                    filename,
-                    MAX_FILENAME - 1);
-            modified_files[modified_count][MAX_FILENAME - 1] = '\0';
+            /* Hash different → modified after staging */
+            strncpy(modified[modified_count],
+                    fname, MAX_FILENAME - 1);
+            modified[modified_count][MAX_FILENAME-1] = '\0';
             modified_count++;
         }
     }
 
     /*
-     * ──────────────────────────────────────────
-     * STEP 6: Find UNTRACKED files
-     * ──────────────────────────────────────────
-     *
-     * An untracked file is one that:
-     *   → Exists in the directory
-     *   → Is NOT in staging area
-     *   → Is NOT in the last commit
-     *
-     * We check ALL files in directory
-     * and filter out the ones we know about.
+     * Check directory files for untracked:
+     * Not in staging AND not in last commit
      */
-    char untracked_files[100][MAX_FILENAME];
-    int untracked_count = 0;
-
     for (int i = 0; i < dir_count; i++) {
 
-        char* filename = dir_files[i];
+        char* fname = dir_files[i];
 
-        /* Is it in staging area? */
-        int in_staging = (is_file_staged(filename, entries,
-                                          staged_count) != -1);
+        int in_staging = (find_in_staging(
+                            fname,
+                            entries,
+                            staged_count) != -1);
 
-        /* Is it in the last commit? */
-        int in_commit = is_in_list(filename,
-                                    committed_files,
-                                    committed_count);
+        int in_commit = is_in_list(
+                            fname,
+                            committed_files,
+                            committed_count);
 
-        /*
-         * If it's in NEITHER staging NOR last commit
-         * → It's UNTRACKED
-         *
-         * || means OR: "if not in staging OR not in commit"
-         * We use ! (NOT) and && (AND):
-         *   !in_staging && !in_commit
-         *   "NOT staged AND NOT committed"
-         *   Both must be true for it to be untracked!
-         */
         if (!in_staging && !in_commit) {
-            strncpy(untracked_files[untracked_count],
-                    filename,
-                    MAX_FILENAME - 1);
-            untracked_files[untracked_count][MAX_FILENAME - 1] = '\0';
+            strncpy(untracked[untracked_count],
+                    fname, MAX_FILENAME - 1);
+            untracked[untracked_count][MAX_FILENAME-1] = '\0';
             untracked_count++;
         }
     }
 
-    /*
-     * ──────────────────────────────────────────
-     * STEP 7: Display the results!
-     * ──────────────────────────────────────────
-     *
-     * Show a clean, color-coded summary.
-     */
+    /* ── Step 6: Display results ── */
 
-    /* ── STAGED FILES ── */
-    if (staged_file_count > 0) {
-        printf(GREEN "  Changes to be committed:\n" RESET);
-        printf(GREEN "  (use \"mygit commit\" to save these)\n" RESET);
-        printf("\n");
+    /* STAGED */
+    if (staged_clean_count > 0) {
+        printf(GREEN
+               "  Changes to be committed:\n"
+               RESET);
+        printf(GREEN
+               "  (use \"mygit commit\" to save)\n\n"
+               RESET);
 
-        for (int i = 0; i < staged_file_count; i++) {
-            printf(GREEN "        staged:   %s\n" RESET,
-                   staged_files[i]);
+        for (int i = 0; i < staged_clean_count; i++) {
+            printf(GREEN "        staged:    " RESET
+                   "%s\n", staged_clean[i]);
         }
         printf("\n");
     }
 
-    /* ── MODIFIED FILES ── */
+    /* MODIFIED */
     if (modified_count > 0) {
-        printf(RED "  Changes not staged for commit:\n" RESET);
-        printf(RED "  (use \"mygit add <file>\" to update)\n" RESET);
-        printf("\n");
+        printf(RED
+               "  Changes not staged for commit:\n"
+               RESET);
+        printf(RED
+               "  (use \"mygit add <file>\" to update)\n\n"
+               RESET);
 
         for (int i = 0; i < modified_count; i++) {
-            printf(RED "        modified: %s\n" RESET,
-                   modified_files[i]);
+            printf(RED "        modified:  " RESET
+                   "%s\n", modified[i]);
         }
         printf("\n");
     }
 
-    /* ── UNTRACKED FILES ── */
+    /* UNTRACKED */
     if (untracked_count > 0) {
-        printf(YELLOW "  Untracked files:\n" RESET);
-        printf(YELLOW "  (use \"mygit add <file>\" to track)\n" RESET);
-        printf("\n");
+        printf(YELLOW
+               "  Untracked files:\n"
+               RESET);
+        printf(YELLOW
+               "  (use \"mygit add <file>\" to track)\n\n"
+               RESET);
 
         for (int i = 0; i < untracked_count; i++) {
-            printf(YELLOW "        untracked: %s\n" RESET,
-                   untracked_files[i]);
+            printf(YELLOW "        untracked: " RESET
+                   "%s\n", untracked[i]);
         }
         printf("\n");
     }
 
-    /* ── CLEAN STATE ── */
-    if (staged_file_count == 0 &&
-        modified_count == 0 &&
-        untracked_count == 0) {
+    /* CLEAN */
+    if (staged_clean_count == 0
+        && modified_count  == 0
+        && untracked_count == 0) {
 
-        printf(GREEN "  ✅ Nothing to commit, working tree clean!\n" RESET);
-        printf("\n");
+        printf(GREEN
+               "  Nothing to commit, "
+               "working tree clean!\n\n"
+               RESET);
     }
 
-    /*
-     * ──────────────────────────────────────────
-     * STEP 8: Show helpful summary line
-     * ──────────────────────────────────────────
-     *
-     * Like real git's summary at the bottom
-     */
-    if (staged_file_count > 0 || modified_count > 0) {
+    /* SUMMARY LINE */
+    if (staged_clean_count > 0
+        || modified_count  > 0
+        || untracked_count > 0) {
 
-       printf(CYAN "  -------------------------------------\n" RESET);
+        printf(CYAN "  -------------------------------------\n"
+               RESET);
 
-        if (staged_file_count > 0) {
-            printf(GREEN "  %d file(s) staged" RESET, staged_file_count);
-            if (modified_count > 0 || untracked_count > 0) {
-                printf(", ");
-            }
+        if (staged_clean_count > 0) {
+            printf(GREEN "  %d file(s) staged  " RESET,
+                   staged_clean_count);
         }
-
         if (modified_count > 0) {
-            printf(RED "%d file(s) modified" RESET, modified_count);
-            if (untracked_count > 0) {
-                printf(", ");
-            }
+            printf(RED "%d file(s) modified  " RESET,
+                   modified_count);
         }
-
         if (untracked_count > 0) {
-            printf(YELLOW "%d file(s) untracked" RESET, untracked_count);
+            printf(YELLOW "%d file(s) untracked" RESET,
+                   untracked_count);
         }
 
         printf("\n\n");

@@ -125,6 +125,12 @@ typedef struct Branch {
 
 // init.c
 int mygit_init(void);
+/* status.c */
+int should_ignore_file(const char* filename);
+int mygit_status(void);
+int is_in_list(const char* filename,
+               char list[][MAX_FILENAME],
+               int count);
 
 // utils.c
 unsigned long hash_content(const char* content);

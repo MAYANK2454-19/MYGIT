@@ -18,7 +18,8 @@
 #include "mygit.h"
 
 /* ADD THESE LINES AT THE TOP OF main() */
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[]){
+
 
     #ifdef _WIN32
     /*
