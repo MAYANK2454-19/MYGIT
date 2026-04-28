@@ -108,13 +108,29 @@ int main(int argc, char* argv[]) {
         return mygit_checkout(argv[2]);
     }
 
-    /* ── BRANCH ── */
-    else if (strcmp(command, "branch") == 0) {
-        if (argc < 3) {
-            return mygit_list_branches();
-        }
-        return mygit_branch(argv[2]);
+   /* ── BRANCH ── */
+else if (strcmp(command, "branch") == 0) {
+
+    if (argc < 3) {
+        /* No argument → list branches */
+        return mygit_list_branches();
     }
+
+    if (strcmp(argv[2], "switch") == 0) {
+        /* "mygit branch switch <name>" */
+        if (argc < 4) {
+            printf(RED
+                   "  ✗ Usage: mygit branch"
+                   " switch <name>\n\n"
+                   RESET);
+            return 1;
+        }
+        return switch_branch(argv[3]);
+    }
+
+    /* "mygit branch <name>" → create */
+    return mygit_branch_create(argv[2]);
+}
 
     /* ── HELP ── */
     else if (strcmp(command, "help") == 0) {
