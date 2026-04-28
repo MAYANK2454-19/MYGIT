@@ -122,7 +122,11 @@ int is_in_list(const char* filename,
 int mygit_checkout(const char* target);
 
 /* branch.c */
-int mygit_branch(const char* branch_name);
+int branch_exists(const char* name);
+int get_branch_commit_id(const char* name);
 int mygit_list_branches(void);
-
+int mygit_branch(const char* branch_name);
+int mygit_branch_create(const char* branch_name);
+int switch_branch(const char* branch_name);
+int find_commit_by_id(int target_id, Commit* commit);
 #endif
