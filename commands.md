@@ -1,11 +1,4 @@
 
----
-
-# 📋 All Commands — Single Reference
-
-Save this as `COMMANDS.md`:
-
-```markdown
 # MyGit — All Commands Reference
 
 ---
