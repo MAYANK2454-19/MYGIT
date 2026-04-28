@@ -178,18 +178,63 @@ void print_banner(void) {
  */
 void print_help(void) {
     printf("\n");
-    printf(YELLOW "USAGE:" RESET "\n");
-    printf("  mygit <command> [arguments]\n\n");
-    printf(YELLOW "COMMANDS:" RESET "\n");
-    printf(GREEN "  init              " RESET "Initialize a new repository\n");
-    printf(GREEN "  add <file>        " RESET "Stage a file for commit\n");
-    printf(GREEN "  commit \"message\"  " RESET "Save a snapshot\n");
-    printf(GREEN "  log               " RESET "Show commit history\n");
-    printf(GREEN "  status            " RESET "Show working tree status\n");
-    printf(GREEN "  diff <file>       " RESET "Show changes in a file\n");
-    printf(GREEN "  checkout <id>     " RESET "Restore a previous commit\n");
-    printf(GREEN "  branch <name>     " RESET "Create a new branch\n");
-    printf(GREEN "  branch            " RESET "List all branches\n");
-    printf(GREEN "  help              " RESET "Show this help message\n");
+    printf(CYAN
+           "  Usage: mygit <command> "
+           "[arguments]\n\n"
+           RESET);
+
+    printf(YELLOW "  BASIC COMMANDS:\n" RESET);
+    printf(GREEN  "    init              " RESET);
+    printf("Initialize a new repository\n");
+
+    printf(GREEN  "    add <file>        " RESET);
+    printf("Stage a file for commit\n");
+
+    printf(GREEN  "    commit \"message\"  " RESET);
+    printf("Save a snapshot\n");
+
+    printf(GREEN  "    log               " RESET);
+    printf("Show commit history\n");
+
+    printf(GREEN  "    status            " RESET);
+    printf("Show working tree status\n");
+
+    printf("\n");
+    printf(YELLOW "  COMPARISON COMMANDS:\n" RESET);
+    printf(GREEN  "    diff <file>       " RESET);
+    printf("Show changes in a file\n");
+
+    printf("\n");
+    printf(YELLOW "  HISTORY COMMANDS:\n" RESET);
+    printf(GREEN  "    checkout <id>     " RESET);
+    printf("Restore a previous commit\n");
+
+    printf(GREEN  "    checkout latest   " RESET);
+    printf("Go to newest commit\n");
+
+    printf("\n");
+    printf(YELLOW "  BRANCH COMMANDS:\n" RESET);
+    printf(GREEN  "    branch            " RESET);
+    printf("List all branches\n");
+
+    printf(GREEN  "    branch <name>     " RESET);
+    printf("Create a new branch\n");
+
+    printf(GREEN  "    branch switch <n> " RESET);
+    printf("Switch to a branch\n");
+
+    printf("\n");
+    printf(YELLOW "  OTHER:\n" RESET);
+    printf(GREEN  "    help              " RESET);
+    printf("Show this help message\n");
+
+    printf("\n");
+    printf(CYAN
+           "  Examples:\n"
+           RESET);
+    printf("    mygit add hello.txt\n");
+    printf("    mygit commit \"fixed bug\"\n");
+    printf("    mygit checkout 2\n");
+    printf("    mygit branch switch dev\n");
     printf("\n");
 }

@@ -112,12 +112,12 @@ int main(int argc, char* argv[]) {
 else if (strcmp(command, "branch") == 0) {
 
     if (argc < 3) {
-        /* No argument → list branches */
+        /* mygit branch → list all */
         return mygit_list_branches();
     }
 
     if (strcmp(argv[2], "switch") == 0) {
-        /* "mygit branch switch <name>" */
+        /* mygit branch switch <name> */
         if (argc < 4) {
             printf(RED
                    "  ✗ Usage: mygit branch"
@@ -128,7 +128,7 @@ else if (strcmp(command, "branch") == 0) {
         return switch_branch(argv[3]);
     }
 
-    /* "mygit branch <name>" → create */
+    /* mygit branch <name> → create */
     return mygit_branch_create(argv[2]);
 }
 

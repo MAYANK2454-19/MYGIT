@@ -128,5 +128,8 @@ int mygit_list_branches(void);
 int mygit_branch(const char* branch_name);
 int mygit_branch_create(const char* branch_name);
 int switch_branch(const char* branch_name);
-int find_commit_by_id(int target_id, Commit* commit);
+
+/* checkout.c (used by branch.c too) */
+int find_commit_by_id(int target_id,
+                      Commit* commit);
 #endif
