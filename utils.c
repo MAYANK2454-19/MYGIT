@@ -161,16 +161,20 @@ char* get_current_branch(char* buffer, int size) {
  * PRINT COOL BANNER
  */
 void print_banner(void) {
-    printf(CYAN);
-    printf("╔══════════════════════════════════════╗\n");
-    printf("║        ");
-    printf(YELLOW);
-    printf("⚡ MyGit v1.0 ⚡");
-    printf(CYAN);
-    printf("             ║\n");
-    printf("║   Mini Version Control System in C   ║\n");
-    printf("╚══════════════════════════════════════╝\n");
-    printf(RESET);
+    printf("\n");
+    printf(CYAN
+"  +==========================================+\n"
+           RESET);
+    printf(CYAN "  |" YELLOW
+"          MyGit - Version Control           "
+           CYAN "|\n" RESET);
+    printf(CYAN "  |" RESET
+"     Built with C | Data Structures         "
+           CYAN "|\n" RESET);
+    printf(CYAN
+"  +==========================================+\n"
+           RESET);
+    printf("\n");
 }
 
 /*

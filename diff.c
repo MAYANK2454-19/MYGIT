@@ -526,18 +526,20 @@ void perform_diff(char old_lines[][MAX_LINE], int old_count,
  */
 int mygit_diff(const char* filename) {
 
-    /*
-     * ─────────────────────────────
-     * STEP 1: Check file exists
-     * ─────────────────────────────
-     */
+    /* Check file exists first */
     if (!file_exists(filename)) {
         printf(RED
                "\n  ✗ File not found: '%s'\n\n"
                RESET, filename);
+        printf("  Tips:\n");
+        printf("  - Make sure you're in the "
+               "right folder\n");
+        printf("  - Run " YELLOW "mygit status"
+               RESET " to see tracked files\n\n");
         return -1;
     }
 
+    /* rest of function... */
     /*
      * ─────────────────────────────
      * STEP 2: Find committed hash

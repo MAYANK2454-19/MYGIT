@@ -621,4 +621,158 @@ int mygit_log(void) {
     free_commit_list(head);
 
     return 0;
+    
+}
+/*
+ * FUNCTION: mygit_show
+ * ─────────────────────
+ * Shows detailed info about ONE specific commit.
+ *
+ * Like "git show <commit_id>"
+ *
+ * PARAMETERS:
+ *   commit_id → Which commit to show
+ */
+int mygit_show(int commit_id) {
+
+    if (commit_id <= 0) {
+        printf(RED
+               "\n  ✗ Invalid commit ID!\n\n"
+               RESET);
+        return -1;
+    }
+
+    /* Load all commits */
+    Commit* head = load_all_commits();
+
+    if (!head) {
+        printf(YELLOW
+               "\n  No commits found!\n\n"
+               RESET);
+        return 0;
+    }
+
+    /* Search for our commit */
+    Commit* current = head;
+    Commit* found   = NULL;
+
+    while (current != NULL) {
+        if (current->id == commit_id) {
+            found = current;
+            break;
+        }
+        current = current->next;
+    }
+
+    if (!found) {
+        printf(RED
+               "\n  ✗ Commit #%d not found!\n\n"
+               RESET, commit_id);
+        free_commit_list(head);
+        return -1;
+    }
+
+    /* Display detailed info */
+    printf("\n");
+    printf(CYAN
+"  +==========================================+\n"
+           RESET);
+    printf(CYAN "  |" YELLOW
+"              Commit Details                "
+           CYAN "|\n" RESET);
+    printf(CYAN
+"  +==========================================+\n"
+           RESET);
+
+    printf(CYAN "  |" RESET
+           " ID      : %-30d"
+           CYAN "|\n" RESET, found->id);
+    printf(CYAN "  |" RESET
+           " Message : %-30s"
+           CYAN "|\n" RESET, found->message);
+    printf(CYAN "  |" RESET
+           " Branch  : %-30s"
+           CYAN "|\n" RESET, found->branch);
+    printf(CYAN "  |" RESET
+           " Time    : %-30s"
+           CYAN "|\n" RESET, found->timestamp);
+
+    if (found->parent_id == -1) {
+        printf(CYAN "  |" RESET
+               " Parent  : %-30s"
+               CYAN "|\n" RESET,
+               "(root - no parent)");
+    } else {
+        char parent_str[20];
+        snprintf(parent_str, sizeof(parent_str),
+                 "Commit #%d", found->parent_id);
+        printf(CYAN "  |" RESET
+               " Parent  : %-30s"
+               CYAN "|\n" RESET, parent_str);
+    }
+
+    printf(CYAN
+"  +==========================================+\n"
+           RESET);
+
+    printf(CYAN "  |" YELLOW
+"                  Files                     "
+           CYAN "|\n" RESET);
+    printf(CYAN
+"  +==========================================+\n"
+           RESET);
+
+    for (int i = 0; i < found->file_count; i++) {
+        printf(CYAN "  |" RESET
+               " %-2d. %-36s"
+               CYAN "|\n" RESET,
+               i + 1,
+               found->filenames[i]);
+
+        /* Show file content from blob */
+        char blob_path[MAX_PATH];
+        snprintf(blob_path, sizeof(blob_path),
+                 "%s/%lu.blob",
+                 OBJECTS_DIR,
+                 found->file_hashes[i]);
+
+        if (file_exists(blob_path)) {
+            char content[MAX_CONTENT];
+            read_file(blob_path, content,
+                      MAX_CONTENT);
+
+            /* Count lines */
+            int lines = 0;
+            for (int j = 0; content[j]; j++) {
+                if (content[j] == '\n') lines++;
+            }
+            if (strlen(content) > 0
+                && content[strlen(content)-1]
+                   != '\n') {
+                lines++;
+            }
+
+            char info[50];
+            snprintf(info, sizeof(info),
+                     "   (%d lines, hash:%lu)",
+                     lines,
+                     found->file_hashes[i]);
+
+            /* Truncate if too long */
+            if (strlen(info) > 40) {
+                info[40] = '\0';
+            }
+
+            printf(CYAN "  |" RESET
+                   " %-40s"
+                   CYAN "|\n" RESET, info);
+        }
+    }
+
+    printf(CYAN
+"  +==========================================+\n\n"
+           RESET);
+
+    free_commit_list(head);
+    return 0;
 }

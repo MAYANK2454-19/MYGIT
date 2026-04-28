@@ -107,7 +107,7 @@ int mygit_commit(const char* message);
 
 /* log.c */
 int mygit_log(void);
-
+int mygit_show(int commit_id);
 /* diff.c */
 int mygit_diff(const char* filename);
 

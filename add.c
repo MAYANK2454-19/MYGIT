@@ -299,20 +299,31 @@ void remove_from_staging(const char* filename) {
  */
 int mygit_add(const char* filename) {
 
-    /* 
-     * ──────────────────────────
-     * STEP 1: Does the file exist?
-     * ──────────────────────────
-     * 
-     * We can't add a file that doesn't exist!
-     * Just like you can't photocopy a document you don't have.
+    /*
+     * Check if user accidentally typed a folder
      */
+    struct stat st;
+    if (stat(filename, &st) == 0) {
+        if (S_ISDIR(st.st_mode)) {
+            printf(RED
+                   "\n  ✗ '%s' is a directory!\n"
+                   "    mygit add only works "
+                   "with files.\n\n"
+                   RESET, filename);
+            return -1;
+        }
+    }
+
     if (!file_exists(filename)) {
-        printf(RED "✗ File not found: '%s'\n" RESET, filename);
-        printf("  Make sure the file exists in the current directory.\n");
+        printf(RED
+               "\n  ✗ File not found: '%s'\n"
+               RESET, filename);
+        printf("    Make sure the file exists "
+               "in the current folder.\n\n");
         return -1;
     }
 
+    /* rest of function stays the same... */
     /* 
      * ──────────────────────────
      * STEP 2: Read the file content

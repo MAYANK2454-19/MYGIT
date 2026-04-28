@@ -499,11 +499,18 @@ int mygit_commit(const char* message) {
      */
     int staged_count = count_staged_files();
 
-    if (staged_count == 0) {
-        printf(YELLOW "⚠ Nothing to commit!\n" RESET);
-        printf("  Stage files first with: mygit add <filename>\n");
-        return -1;
-    }
+   if (staged_count == 0) {
+    printf(YELLOW
+           "\n  Nothing to commit!\n\n"
+           RESET);
+    printf("  Steps to commit:\n");
+    printf("    1. Create or modify a file\n");
+    printf("    2. " GREEN "mygit add <filename>"
+           RESET "\n");
+    printf("    3. " GREEN "mygit commit \"message\""
+           RESET "\n\n");
+    return -1;
+}
 
     /*
      * ──────────────────────────────────

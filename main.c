@@ -138,7 +138,16 @@ else if (strcmp(command, "branch") == 0) {
         print_help();
         return 0;
     }
-
+  /* ── SHOW ── */
+else if (strcmp(command, "show") == 0) {
+    if (argc < 3) {
+        printf(RED
+               "  ✗ Usage: mygit show <id>\n\n"
+               RESET);
+        return 1;
+    }
+    return mygit_show(atoi(argv[2]));
+}
     /* ── UNKNOWN ── */
     else {
         printf(RED
