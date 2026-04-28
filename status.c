@@ -310,39 +310,67 @@ int list_directory_files(char files[][MAX_FILENAME], int max_count) {
     }
 
     do {
-        /*
-         * findData.cFileName = name of current file
-         * findData.dwFileAttributes = file properties (is it a folder? hidden?)
-         *
-         * FILE_ATTRIBUTE_DIRECTORY → It's a folder, skip it!
-         * We only want REGULAR FILES.
-         *
-         * & is bitwise AND → checks if the DIRECTORY bit is set
-         */
-        if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-            continue;  /* Skip folders */
-        }
+    /* Skip folders */
+    if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+        continue;
+    }
 
-        /* Skip hidden files (starting with '.') */
-        if (findData.cFileName[0] == '.') {
-            continue;
-        }
+    /* Skip hidden files */
+    if (findData.cFileName[0] == '.') {
+        continue;
+    }
 
-        /* Skip our own executable */
-        if (strcmp(findData.cFileName, "mygit.exe") == 0) {
-            continue;
-        }
+    /*
+     * Skip project/system files
+     * We don't want to show these as "untracked"
+     * They're part of the project itself!
+     *
+     * strstr(haystack, needle)
+     * Finds needle INSIDE haystack
+     * Returns NULL if not found
+     *
+     * So strstr(name, ".c") != NULL means
+     * "the filename contains .c"
+     */
+    char* name = findData.cFileName;
 
-        /* Skip .c source files (they're our code, not user data) */
-        /* Actually let's include them — user might track .c files! */
+    /* Skip .c source files */
+    if (strstr(name, ".c") != NULL) {
+        continue;
+    }
 
-        if (count < max_count) {
-            strncpy(files[count], findData.cFileName, MAX_FILENAME - 1);
-            files[count][MAX_FILENAME - 1] = '\0';
-            count++;
-        }
+    /* Skip .h header files */
+    if (strstr(name, ".h") != NULL) {
+        continue;
+    }
 
-    } while (FindNextFile(hFind, &findData) && count < max_count);
+    /* Skip .exe files */
+    if (strstr(name, ".exe") != NULL) {
+        continue;
+    }
+
+    /* Skip .o object files */
+    if (strstr(name, ".o") != NULL) {
+        continue;
+    }
+
+    /* Skip Makefile */
+    if (strcmp(name, "Makefile") == 0) {
+        continue;
+    }
+
+    /* Skip .dat files (our internal files) */
+    if (strstr(name, ".dat") != NULL) {
+        continue;
+    }
+
+    if (count < max_count) {
+        strncpy(files[count], name, MAX_FILENAME - 1);
+        files[count][MAX_FILENAME - 1] = '\0';
+        count++;
+    }
+
+} while (FindNextFile(hFind, &findData) && count < max_count);
     /*
      * FindNextFile returns:
      *   Non-zero → found another file, continue
