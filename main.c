@@ -1,3 +1,20 @@
+
+    /* rest of your main() code stays the same */
+/*
+ * ============================================
+ *          MYGIT - Main Entry Point
+ *          Parses commands like real Git
+ * ============================================
+ * 
+ * HOW IT WORKS:
+ * User types: ./mygit commit "first commit"
+ *                      ^^^^^^ ^^^^^^^^^^^^^^
+ *                      argv[1]   argv[2]
+ * 
+ * We check argv[1] and call the right function.
+ * This is how ALL command-line tools work!
+ */
+
 #include "mygit.h"
 
 /* ADD THESE LINES AT THE TOP OF main() */
@@ -32,27 +49,8 @@ int main(int argc, char* argv[]) {
     GetConsoleMode(hOut, &dwMode);
     dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
     SetConsoleMode(hOut, dwMode);
-    #endif
+    #endif 
 
-    /* rest of your main() code stays the same */
-/*
- * ============================================
- *          MYGIT - Main Entry Point
- *          Parses commands like real Git
- * ============================================
- * 
- * HOW IT WORKS:
- * User types: ./mygit commit "first commit"
- *                      ^^^^^^ ^^^^^^^^^^^^^^
- *                      argv[1]   argv[2]
- * 
- * We check argv[1] and call the right function.
- * This is how ALL command-line tools work!
- */
-
-#include "mygit.h"
-
-int main(int argc, char* argv[]) {
 
     // No command given → show help
     if (argc < 2) {
