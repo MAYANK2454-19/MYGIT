@@ -690,7 +690,7 @@ int mygit_status(void) {
      */
     if (staged_file_count > 0 || modified_count > 0) {
 
-        printf(CYAN "  ─────────────────────────────────────\n" RESET);
+       printf(CYAN "  -------------------------------------\n" RESET);
 
         if (staged_file_count > 0) {
             printf(GREEN "  %d file(s) staged" RESET, staged_file_count);
