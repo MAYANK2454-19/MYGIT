@@ -1,3 +1,40 @@
+#include "mygit.h"
+
+/* ADD THESE LINES AT THE TOP OF main() */
+int main(int argc, char* argv[]) {
+
+    #ifdef _WIN32
+    /*
+     * SetConsoleOutputCP sets the Windows console's
+     * character encoding to UTF-8 (code page 65001)
+     *
+     * This tells Windows CMD:
+     * "Hey, we're sending UTF-8 text, display it correctly!"
+     *
+     * Without this: ─ shows as ΓöÇ
+     * With this:    ─ shows as ─
+     *
+     * 65001 = UTF-8 code page number
+     */
+    SetConsoleOutputCP(65001);
+
+    /*
+     * Also enable virtual terminal processing
+     * This makes ANSI color codes work properly on Windows!
+     *
+     * HANDLE → A reference to a Windows resource
+     * GetStdHandle(STD_OUTPUT_HANDLE) → Get handle to console output
+     * SetConsoleMode → Change how the console behaves
+     * ENABLE_VIRTUAL_TERMINAL_PROCESSING → Allow ANSI escape codes
+     */
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    DWORD dwMode = 0;
+    GetConsoleMode(hOut, &dwMode);
+    dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+    SetConsoleMode(hOut, dwMode);
+    #endif
+
+    /* rest of your main() code stays the same */
 /*
  * ============================================
  *          MYGIT - Main Entry Point
