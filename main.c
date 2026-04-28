@@ -1,148 +1,136 @@
-
-    /* rest of your main() code stays the same */
-/*
- * ============================================
- *          MYGIT - Main Entry Point
- *          Parses commands like real Git
- * ============================================
- * 
- * HOW IT WORKS:
- * User types: ./mygit commit "first commit"
- *                      ^^^^^^ ^^^^^^^^^^^^^^
- *                      argv[1]   argv[2]
- * 
- * We check argv[1] and call the right function.
- * This is how ALL command-line tools work!
- */
-
 #include "mygit.h"
 
-/* ADD THESE LINES AT THE TOP OF main() */
-int main(int argc, char* argv[]){
-
+int main(int argc, char* argv[]) {
 
     #ifdef _WIN32
     /*
-     * SetConsoleOutputCP sets the Windows console's
-     * character encoding to UTF-8 (code page 65001)
-     *
-     * This tells Windows CMD:
-     * "Hey, we're sending UTF-8 text, display it correctly!"
-     *
-     * Without this: ─ shows as ΓöÇ
-     * With this:    ─ shows as ─
-     *
-     * 65001 = UTF-8 code page number
+     * Fix Windows console to show colors and
+     * unicode characters correctly
      */
     SetConsoleOutputCP(65001);
 
     /*
-     * Also enable virtual terminal processing
-     * This makes ANSI color codes work properly on Windows!
+     * ENABLE_VIRTUAL_TERMINAL_PROCESSING might not
+     * be defined in older MinGW versions.
+     * We define it manually here!
      *
-     * HANDLE → A reference to a Windows resource
-     * GetStdHandle(STD_OUTPUT_HANDLE) → Get handle to console output
-     * SetConsoleMode → Change how the console behaves
-     * ENABLE_VIRTUAL_TERMINAL_PROCESSING → Allow ANSI escape codes
+     * This value (0x0004) is from Microsoft docs.
+     * It tells Windows console to process
+     * ANSI escape codes (our color codes!)
      */
+    #ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
+    #define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
+    #endif
+
     HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
     DWORD dwMode = 0;
     GetConsoleMode(hOut, &dwMode);
     dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
     SetConsoleMode(hOut, dwMode);
-    #endif 
+    #endif
 
-
-    // No command given → show help
+    /* No command given → show help */
     if (argc < 2) {
         print_banner();
         print_help();
         return 0;
     }
 
-    // Parse the command (argv[1])
     char* command = argv[1];
 
-    /* ─── INIT ─── */
+    /* init does not need .mygit to exist */
     if (strcmp(command, "init") == 0) {
         return mygit_init();
     }
 
-    /*
-     * For all other commands, repository must exist
-     * (just like git gives error if you haven't done git init)
-     */
+    /* All other commands need .mygit to exist */
     if (!directory_exists(MYGIT_DIR)) {
-        printf(RED "✗ Not a MyGit repository!\n" RESET);
-        printf("  Run " YELLOW "mygit init" RESET " first.\n");
+        printf(RED
+               "\n  ✗ Not a MyGit repository!\n"
+               RESET);
+        printf("  Run "
+               YELLOW "mygit init"
+               RESET " first.\n\n");
         return 1;
     }
 
-    /* ─── ADD ─── */
+    /* ── ADD ── */
     if (strcmp(command, "add") == 0) {
         if (argc < 3) {
-            printf(RED "✗ Please specify a file: mygit add <filename>\n" RESET);
+            printf(RED
+                   "  ✗ Usage: mygit add <filename>\n"
+                   RESET);
             return 1;
         }
         return mygit_add(argv[2]);
     }
 
-    /* ─── COMMIT ─── */
+    /* ── COMMIT ── */
     else if (strcmp(command, "commit") == 0) {
         if (argc < 3) {
-            printf(RED "✗ Please provide a message: mygit commit \"your message\"\n" RESET);
+            printf(RED
+                   "  ✗ Usage: mygit commit \"message\"\n"
+                   RESET);
             return 1;
         }
         return mygit_commit(argv[2]);
     }
 
-    /* ─── LOG ─── */
+    /* ── LOG ── */
     else if (strcmp(command, "log") == 0) {
         return mygit_log();
     }
 
-    /* ─── STATUS ─── */
+    /* ── STATUS ── */
     else if (strcmp(command, "status") == 0) {
         return mygit_status();
     }
 
-    /* ─── DIFF ─── */
+    /* ── DIFF ── */
     else if (strcmp(command, "diff") == 0) {
         if (argc < 3) {
-            printf(RED "✗ Please specify a file: mygit diff <filename>\n" RESET);
+            printf(RED
+                   "  ✗ Usage: mygit diff <filename>\n"
+                   RESET);
             return 1;
         }
         return mygit_diff(argv[2]);
     }
 
-    /* ─── CHECKOUT ─── */
+    /* ── CHECKOUT ── */
     else if (strcmp(command, "checkout") == 0) {
         if (argc < 3) {
-            printf(RED "✗ Please specify commit ID or branch: mygit checkout <target>\n" RESET);
+            printf(RED
+                   "  ✗ Usage: mygit checkout <id>\n"
+                   RESET);
             return 1;
         }
         return mygit_checkout(argv[2]);
     }
 
-    /* ─── BRANCH ─── */
+    /* ── BRANCH ── */
     else if (strcmp(command, "branch") == 0) {
         if (argc < 3) {
-            return mygit_list_branches();  // no arg → list branches
+            return mygit_list_branches();
         }
-        return mygit_branch(argv[2]);      // with arg → create branch
+        return mygit_branch(argv[2]);
     }
 
-    /* ─── HELP ─── */
+    /* ── HELP ── */
     else if (strcmp(command, "help") == 0) {
         print_banner();
         print_help();
         return 0;
     }
 
-    /* ─── UNKNOWN COMMAND ─── */
+    /* ── UNKNOWN ── */
     else {
-        printf(RED "✗ Unknown command: '%s'\n" RESET, command);
-        printf("  Run " YELLOW "mygit help" RESET " to see available commands.\n");
+        printf(RED
+               "\n  ✗ Unknown command: '%s'\n"
+               RESET, command);
+        printf("  Run "
+               YELLOW "mygit help"
+               RESET " to see commands.\n\n");
         return 1;
     }
 
