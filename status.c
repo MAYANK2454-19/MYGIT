@@ -278,6 +278,58 @@ int get_committed_files(char filenames[][MAX_FILENAME],
  * RETURNS:
  *   Number of files found
  */
+/*
+ * FUNCTION: should_ignore_file
+ * ─────────────────────────────
+ * Returns 1 if we should IGNORE this file in status.
+ * Returns 0 if we should SHOW this file.
+ *
+ * We ignore:
+ *   → Our own source files (.c, .h)
+ *   → Compiled files (.exe, .o)
+ *   → Build files (Makefile)
+ *
+ * Think of it like .gitignore in real Git!
+ * Real Git has a .gitignore file where you list
+ * files to ignore. We're doing it manually here.
+ *
+ * FUTURE IMPROVEMENT:
+ *   Read from a .mygitignore file!
+ *   That would be a great extra feature to add!
+ */
+int should_ignore_file(const char* filename) {
+
+    /*
+     * Check file EXTENSION
+     *
+     * strrchr = "string reverse char"
+     * Finds the LAST occurrence of a character
+     *
+     * strrchr("hello.world.txt", '.')
+     *   → Returns pointer to ".txt" (the LAST dot)
+     *
+     * WHY last dot?
+     *   Some files have multiple dots: "my.file.c"
+     *   We want the EXTENSION (.c), which is after the LAST dot
+     */
+    const char* ext = strrchr(filename, '.');
+
+    if (ext != NULL) {
+        /* Compare extension with known types to ignore */
+        if (strcmp(ext, ".c")   == 0) return 1;
+        if (strcmp(ext, ".h")   == 0) return 1;
+        if (strcmp(ext, ".exe") == 0) return 1;
+        if (strcmp(ext, ".o")   == 0) return 1;
+        if (strcmp(ext, ".dat") == 0) return 1;
+    }
+
+    /* Check specific filenames */
+    if (strcmp(filename, "Makefile") == 0) return 1;
+    if (strcmp(filename, "mygit")    == 0) return 1;
+
+    /* Don't ignore anything else */
+    return 0;
+}
 int list_directory_files(char files[][MAX_FILENAME], int max_count) {
 
     int count = 0;
@@ -310,62 +362,21 @@ int list_directory_files(char files[][MAX_FILENAME], int max_count) {
     }
 
     do {
-    /* Skip folders */
     if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
         continue;
     }
 
-    /* Skip hidden files */
     if (findData.cFileName[0] == '.') {
         continue;
     }
 
-    /*
-     * Skip project/system files
-     * We don't want to show these as "untracked"
-     * They're part of the project itself!
-     *
-     * strstr(haystack, needle)
-     * Finds needle INSIDE haystack
-     * Returns NULL if not found
-     *
-     * So strstr(name, ".c") != NULL means
-     * "the filename contains .c"
-     */
-    char* name = findData.cFileName;
-
-    /* Skip .c source files */
-    if (strstr(name, ".c") != NULL) {
-        continue;
-    }
-
-    /* Skip .h header files */
-    if (strstr(name, ".h") != NULL) {
-        continue;
-    }
-
-    /* Skip .exe files */
-    if (strstr(name, ".exe") != NULL) {
-        continue;
-    }
-
-    /* Skip .o object files */
-    if (strstr(name, ".o") != NULL) {
-        continue;
-    }
-
-    /* Skip Makefile */
-    if (strcmp(name, "Makefile") == 0) {
-        continue;
-    }
-
-    /* Skip .dat files (our internal files) */
-    if (strstr(name, ".dat") != NULL) {
+    /* Use our ignore function! */
+    if (should_ignore_file(findData.cFileName)) {
         continue;
     }
 
     if (count < max_count) {
-        strncpy(files[count], name, MAX_FILENAME - 1);
+        strncpy(files[count], findData.cFileName, MAX_FILENAME - 1);
         files[count][MAX_FILENAME - 1] = '\0';
         count++;
     }
